@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 import threading
 from copy import deepcopy
 from typing import Any, Callable, Dict
+from urllib.parse import urlparse
 
 from mem0 import Memory
 
@@ -32,6 +34,7 @@ def _load_overrides() -> Dict[str, Any]:
         finally:
             session.close()
     except Exception:
+        logging.warning("Failed to load config overrides from database", exc_info=True)
         return {}
 
 
@@ -73,6 +76,49 @@ def _merge_config(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, An
     return merged
 
 
+def _apply_postgres_enforcement(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Enforces PostgreSQL pgvector for vector storage and history logging.
+    Parses DATABASE_URL if available, or falls back to individual POSTGRES_* env vars.
+    """
+    db_url = os.getenv("DATABASE_URL")
+
+    if db_url:
+        parsed = urlparse(db_url)
+        pg_user = parsed.username or "postgres"
+        pg_pass = parsed.password or "postgres"
+        pg_host = parsed.hostname or "postgres"
+        pg_port = parsed.port or 5432
+        pg_db = parsed.path.lstrip("/") or "mem0_app"
+    else:
+        pg_user = os.getenv("POSTGRES_USER", "postgres")
+        pg_pass = os.getenv("POSTGRES_PASSWORD", "postgres")
+        pg_host = os.getenv("POSTGRES_HOST", "postgres")
+        pg_port = int(os.getenv("POSTGRES_PORT", "5432"))
+        pg_db = os.getenv("POSTGRES_DB", "mem0_app")
+
+    # 1. Force Vector Store configuration for pgvector
+    config["vector_store"] = {
+        "provider": "pgvector",
+        "config": {
+            "dbname": pg_db,
+            "user": pg_user,
+            "password": pg_pass,
+            "host": pg_host,
+            "port": pg_port,
+            "collection_name": os.getenv("MEM0_COLLECTION_NAME", "memories"),
+            "embedding_model_dims": int(os.getenv("EMBEDDING_DIMS", "1024")),
+        },
+    }
+
+    # 2. Force History Log URL to Postgres (replaces SQLite)
+    config["history_db_url"] = (
+        f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
+    )
+
+    return config
+
+
 def initialize_state(default_config: Dict[str, Any]) -> None:
     global _current_config, _memory_instance
     with _state_lock:
@@ -81,8 +127,8 @@ def initialize_state(default_config: Dict[str, Any]) -> None:
         if overrides:
             _current_config = _merge_config(_current_config, overrides)
 
-        # Force SQLite history to run purely in-memory
-        _current_config["history_db_path"] = ":memory:"
+        # Enforce Postgres for pgvector and history tracking
+        _current_config = _apply_postgres_enforcement(_current_config)
 
         _memory_instance = Memory.from_config(_current_config)
 
@@ -93,10 +139,10 @@ def update_config(updates: Dict[str, Any]) -> Dict[str, Any]:
         next_config = _merge_config(_current_config, updates)
         _current_config = next_config
 
-        # Preserve in-memory SQLite setting on config update
-        _current_config["history_db_path"] = ":memory:"
+        # Preserve Postgres enforcement on runtime updates
+        _current_config = _apply_postgres_enforcement(_current_config)
 
-        _memory_instance = Memory.from_config(next_config)
+        _memory_instance = Memory.from_config(_current_config)
         overrides = _load_overrides()
         overrides = _merge_config(overrides, updates)
         _save_overrides(overrides)
