@@ -5,11 +5,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Ensure HOME is explicitly set and writable
-ENV HOME=/root
-RUN mkdir -p /root/.mem0 /tmp && chmod -R 777 /root/.mem0 /tmp
-
 WORKDIR /app
+
+# Set HOME to /app so ~ resolves to /app/.mem0
+ENV HOME=/app
+RUN mkdir -p /app/.mem0 /tmp && chmod -R 777 /app/.mem0 /tmp
 
 COPY requirements.txt .
 
