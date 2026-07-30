@@ -7,15 +7,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Force HOME to /tmp so Mem0 defaults its database path to /tmp/.mem0/history.db
-ENV HOME=/tmp
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Copy entrypoint script and grant execution permissions
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Entrypoint runs BEFORE uvicorn starts, guaranteed
+ENTRYPOINT ["/entrypoint.sh"]
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
