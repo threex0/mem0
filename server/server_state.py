@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import threading
 from copy import deepcopy
 from typing import Any, Callable, Dict
@@ -80,6 +81,11 @@ def initialize_state(default_config: Dict[str, Any]) -> None:
         overrides = _load_overrides()
         if overrides:
             _current_config = _merge_config(_current_config, overrides)
+
+        # Force a writable path in /tmp and bypass Mem0's default home directory resolution
+        os.makedirs("/tmp/.mem0", exist_ok=True)
+        _current_config.setdefault("history_db_path", "/tmp/.mem0/history.db")
+
         _memory_instance = Memory.from_config(_current_config)
 
 
@@ -88,6 +94,11 @@ def update_config(updates: Dict[str, Any]) -> Dict[str, Any]:
     with _state_lock:
         next_config = _merge_config(_current_config, updates)
         _current_config = next_config
+
+        # Maintain writable path across dynamic config updates
+        os.makedirs("/tmp/.mem0", exist_ok=True)
+        _current_config.setdefault("history_db_path", "/tmp/.mem0/history.db")
+
         _memory_instance = Memory.from_config(next_config)
         overrides = _load_overrides()
         overrides = _merge_config(overrides, updates)
