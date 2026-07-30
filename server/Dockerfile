@@ -12,10 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Copy entrypoint script and grant execution permissions
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
 EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 
