@@ -39,9 +39,11 @@ def _load_overrides() -> Dict[str, Any]:
 
 
 def _save_overrides(overrides: Dict[str, Any]) -> None:
+    if _session_factory is None:
+        logging.warning("Cannot persist config overrides: _session_factory is None!")
+        return
+
     try:
-        if _session_factory is None:
-            return
         from models import Settings
         from sqlalchemy.dialects.postgresql import insert
 
@@ -58,6 +60,7 @@ def _save_overrides(overrides: Dict[str, Any]) -> None:
             )
             session.execute(stmt)
             session.commit()
+            logging.info("Config overrides successfully saved to PostgreSQL!")
         finally:
             session.close()
     except Exception:
