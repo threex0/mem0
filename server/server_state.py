@@ -75,10 +75,9 @@ def _merge_config(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, An
 
     return merged
 
-
 def _apply_postgres_enforcement(config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Enforces PostgreSQL pgvector for vector storage and history logging.
+    Enforces PostgreSQL pgvector for vector storage.
     Parses DATABASE_URL if available, or falls back to individual POSTGRES_* env vars.
     """
     db_url = os.getenv("DATABASE_URL")
@@ -111,10 +110,8 @@ def _apply_postgres_enforcement(config: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
 
-    # 2. Force History Log URL to Postgres (replaces SQLite)
-    config["history_db_url"] = (
-        f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
-    )
+    # 2. Prevent SQLite file-system errors by explicitly forcing in-memory history
+    config["history_db_path"] = ":memory:"
 
     return config
 
