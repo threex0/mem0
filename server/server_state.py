@@ -39,10 +39,8 @@ def _load_overrides() -> Dict[str, Any]:
 
 
 def _save_overrides(overrides: Dict[str, Any]) -> None:
-    print("--> [_save_overrides] Function entered!", flush=True)
-    
     if _session_factory is None:
-        print("--> [_save_overrides] ERROR: _session_factory is None!", flush=True)
+        logging.warning("Cannot persist config overrides: _session_factory is None!")
         return
 
     try:
@@ -62,11 +60,11 @@ def _save_overrides(overrides: Dict[str, Any]) -> None:
             )
             session.execute(stmt)
             session.commit()
-            print("--> [_save_overrides] SUCCESS: Saved to Postgres settings table!", flush=True)
+            logging.info("Config overrides successfully saved to PostgreSQL.")
         finally:
             session.close()
-    except Exception as e:
-        print(f"--> [_save_overrides] EXCEPTION: {e}", flush=True)
+    except Exception:
+        logging.warning("Failed to persist config overrides to database", exc_info=True)
 
 
 def _merge_config(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
