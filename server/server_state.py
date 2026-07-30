@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import threading
 from copy import deepcopy
 from typing import Any, Callable, Dict
@@ -82,9 +81,8 @@ def initialize_state(default_config: Dict[str, Any]) -> None:
         if overrides:
             _current_config = _merge_config(_current_config, overrides)
 
-        # Force a writable path in /tmp and bypass Mem0's default home directory resolution
-        os.makedirs("/tmp/.mem0", exist_ok=True)
-        _current_config.setdefault("history_db_path", "/tmp/.mem0/history.db")
+        # Force SQLite history to run purely in-memory
+        _current_config["history_db_path"] = ":memory:"
 
         _memory_instance = Memory.from_config(_current_config)
 
@@ -95,9 +93,8 @@ def update_config(updates: Dict[str, Any]) -> Dict[str, Any]:
         next_config = _merge_config(_current_config, updates)
         _current_config = next_config
 
-        # Maintain writable path across dynamic config updates
-        os.makedirs("/tmp/.mem0", exist_ok=True)
-        _current_config.setdefault("history_db_path", "/tmp/.mem0/history.db")
+        # Preserve in-memory SQLite setting on config update
+        _current_config["history_db_path"] = ":memory:"
 
         _memory_instance = Memory.from_config(next_config)
         overrides = _load_overrides()
