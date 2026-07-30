@@ -5,8 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create the default mem0 history directory and give it write permissions
-RUN mkdir -p /root/.mem0 && chmod -R 777 /root/.mem0
+# Ensure HOME is explicitly set and writable
+ENV HOME=/root
+RUN mkdir -p /root/.mem0 /tmp && chmod -R 777 /root/.mem0 /tmp
 
 WORKDIR /app
 
